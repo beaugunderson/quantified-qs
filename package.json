@@ -1,0 +1,19 @@
+{
+  "name": "quantified-qs",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha -R spec"
+  },
+  "repository": "",
+  "author": "Beau Gunderson <beau@beaugunderson.com>",
+  "license": "MIT",
+  "dependencies": {
+    "unshortener": "~0.1.0",
+    "request": "~2.16.6",
+    "lodash": "~1.2.0",
+    "elongate": "~0.2.1",
+    "async": "~0.2.7"
+  }
+}
