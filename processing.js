@@ -12,10 +12,41 @@ var RE_URL = /\b((?:[a-z][\w-]+:(?:\/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+
 var RE_STRIP_DAY = /^(Mon|Wed|Tue|Thu|Fri|Sat|Sun) /;
 
 var BAD_QS = [
-  'awesm', 'cc', 'mn', '_r', 'a_dgi', 'ncid', 'partner', 'mod', 'gj', 'rv',
-  'nl', 'feature', 'list', 'pg', 'refuse_cookie_error', 'smid', 'clickid',
-  'goback', 'dq', 'seid', '_af', 'hl', 'srid', 'kid', 'a', 'trk', 'emc', 'm',
-  's', 'ref', 'st', 's', 'sc', 'mbid', '_af_eid'
+  'a',
+  'a_dgi',
+  '_af',
+  '_af_eid',
+  'awesm',
+  'cc',
+  'clickid',
+  'dq',
+  'emc',
+  'feature',
+  'gj',
+  'goback',
+  'hl',
+  'kid',
+  'list',
+  'm',
+  'mbid',
+  'mn',
+  'mod',
+  'ncid',
+  'nl',
+  'partner',
+  'pg',
+  '_r',
+  'ref',
+  'refuse_cookie_error',
+  'rv',
+  's',
+  's',
+  'sc',
+  'seid',
+  'smid',
+  'srid',
+  'st',
+  'trk'
 ];
 
 var getBody = exports.getBody = function (url, cb) {
