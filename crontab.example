@@ -1,0 +1,1 @@
+*/5 * * * * cd /usr/local/quantified-qs && /usr/local/bin/foreman start search
