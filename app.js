@@ -6,6 +6,8 @@ var request = require('request');
 var http = require('http');
 var https = require('https');
 
+var processing = require('./processing.js');
+
 http.globalAgent.maxSockets = 100;
 https.globalAgent.maxSockets = 100;
 
@@ -23,45 +25,24 @@ elongate = async.memoize(elongate);
 function getPage(qs) {
   console.log('Fetching', (qs || 'first page'));
 
+  if (!qs) {
+    qs = '?q=%40quantifiedself&count=100&result_type=recent';
+  }
+
   request.get({
-    url: BASE_URL + (qs ||
-      '?include_entities=true&q=%40quantifiedself&count=100&result_type=recent&rpp=100'),
+    url: BASE_URL + qs,
     json: true,
     headers: {
-      Authorization: "Bearer " + process.env.BEARER_TOKEN
+      Authorization: 'Bearer ' + process.env.BEARER_TOKEN
     }
   }, function (err, res, body) {
     console.log('Got', body.statuses.length, 'tweets');
 
     async.each(body.statuses, function (tweet, eachTweetCb) {
-      if (!tweet.entities || !tweet.entities.urls) {
-        return eachTweetCb();
-      }
-
-      // TODO: Use an async queue here instead
-      async.each(tweet.entities.urls, function (url, eachUrlCb) {
-        elongate(url.expanded_url, function (err, expandedUrl) {
-          db.query("INSERT INTO urls (tweet_id, user_id, user_name, " +
-            "created_at, retweet_count, url) VALUES (?, ?, ?, ?, ?, ?)",
-            [tweet.id_str, tweet.user.id_str, tweet.user.screen_name,
-              tweet.created_at, tweet.retweet_count || 0, expandedUrl],
-            function (err) {
-            if (err && err.code !== 'ER_DUP_ENTRY') {
-              console.log('SQL error:', err);
-            } else if (!err) {
-              console.log('Added entry for', expandedUrl, 'from',
-                tweet.user.screen_name);
-            }
-          });
-
-          eachUrlCb();
-        });
-      }, function () {
-        eachTweetCb();
-      });
+      processing.addTweet(db, tweet, eachTweetCb);
     }, function () {
-      if (body.search_data && body.search_data.next_results) {
-        getPage(body.search_data.next_results);
+      if (body.search_metadata && body.search_metadata.next_results) {
+        getPage(body.search_metadata.next_results);
       } else {
         console.log('All done');
 
