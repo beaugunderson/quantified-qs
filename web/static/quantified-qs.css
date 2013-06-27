@@ -1,0 +1,34 @@
+body {
+   font-family: Helvetica, Arial;
+}
+
+a:visited {
+   color: darkblue;
+}
+
+a {
+   color: blue;
+}
+
+li {
+   margin-bottom: 0.5em;
+   line-height: 1.25em;
+}
+
+span.url {
+   color: #aaa;
+   font-size: 0.8em;
+}
+
+span.user {
+   font-size: 0.8em;
+}
+
+span.user a {
+   color: #999;
+}
+
+abbr.time {
+   font-size: 0.8em;
+   color: #aaa;
+}
