@@ -3,14 +3,24 @@ var cheerio = require('cheerio');
 var elongate = require('elongate');
 var moment = require('moment');
 var request = require('request');
+var URI = require('URIjs');
 var _ = require('lodash');
 
 // From markdown
 var RE_URL = /\b((?:[a-z][\w-]+:(?:\/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}\/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))/ig;
 
+var RE_STRIP_DAY = /^(Mon|Wed|Tue|Thu|Fri|Sat|Sun) /;
+
+var BAD_QS = [
+  'awesm', 'cc', 'mn', '_r', 'a_dgi', 'ncid', 'partner', 'mod', 'gj', 'rv',
+  'nl', 'feature', 'list', 'pg', 'refuse_cookie_error', 'smid', 'clickid',
+  'goback', 'dq', 'seid', '_af', 'hl', 'srid', 'kid', 'a', 'trk', 'emc', 'm',
+  's', 'ref', 'st', 's', 'sc', 'mbid', '_af_eid'
+];
+
 var getBody = exports.getBody = function (url, cb) {
   request.get(url, function (err, resp, body) {
-    cb(err, body, resp.statusCode);
+    cb(err, body, (resp && resp.statusCode) || -1);
   });
 };
 
@@ -20,8 +30,44 @@ var getTitle = exports.getTitle = function (body) {
   return $('title').text() || '';
 };
 
+var transforms = [
+  // Mobile NYT to web NYT
+  function (url) {
+    return url.replace('mobile.nytimes.com', 'www.nytimes.com');
+  },
+  // Get the real NYT URL
+  function (url) {
+    if (url.indexOf('myaccount.nytimes.com') !== -1) {
+      url = url.replace('https://myaccount.nytimes.com/auth/login?URI=www-nc',
+        'http://www');
+      url = url.replace('&REFUSE_COOKIE_ERROR=SHOW_ERROR', '');
+    }
+
+    return url;
+  },
+  // Strip noisy query parameters
+  function (url) {
+    var urlObject = new URI(url);
+    var queryObject = urlObject.query(true);
+
+    console.log(JSON.stringify(queryObject, null, 2));
+
+    queryObject = _.pick(queryObject, function (value, key) {
+      return !key.match(/^utm_/) && BAD_QS.indexOf(key) === -1;
+    });
+
+    console.log(JSON.stringify(queryObject, null, 2));
+
+    urlObject.setQuery(queryObject);
+
+    return urlObject.toString();
+  }
+];
+
 var addTweetUrls = exports.addTweetUrls = function (db, tweet, cb) {
-  var createdAt = moment.utc(tweet.created_at, 'MMM D H:mm:ss Z YYYY')
+  var strippedDate = tweet.created_at.replace(RE_STRIP_DAY, '');
+
+  var createdAt = moment.utc(strippedDate, 'MMM D H:mm:ss Z YYYY')
     .format('YYYY-MM-DD HH:mm:ss');
 
   async.each(tweet.entities.urls, function (url, eachUrlCb) {
@@ -35,21 +81,33 @@ var addTweetUrls = exports.addTweetUrls = function (db, tweet, cb) {
 
       console.log(' ', url.expanded_url, expandedUrl);
 
-      getBody(expandedUrl, function (err, body, statusCode) {
+      var newUrl = expandedUrl;
+      var oldUrl;
+
+      transforms.forEach(function (transformFn) {
+        oldUrl = newUrl;
+        newUrl = transformFn(oldUrl);
+
+        if (oldUrl !== newUrl) {
+          console.log('~', newUrl);
+        }
+      });
+
+      getBody(newUrl, function (err, body, statusCode) {
         var title = getTitle(body);
 
         db.query('INSERT INTO urls (tweet_id, user_id, user_name, ' +
           'created_at_datetime, retweet_count, url, title, status_code) ' +
             'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
           [tweet.id_str, tweet.user.id_str, tweet.user.screen_name, createdAt,
-            (tweet.retweet_count || 0), expandedUrl, title, statusCode],
+            (tweet.retweet_count || 0), newUrl, title, statusCode],
           function (err) {
           if (err && err.code !== 'ER_DUP_ENTRY') {
             console.log('SQL error:', err);
           } else if (!err) {
-            console.log('+', url.expanded_url, expandedUrl);
+            console.log('+', url.expanded_url, newUrl);
           } else {
-            console.log('#', url.expanded_url, expandedUrl);
+            console.log('#', url.expanded_url, newUrl);
           }
         });
       });
